@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SpendGuard 💱
 
-## Getting Started
+A personal finance tracker built with **Next.js (App Router)**, **React 19**, **Prisma 7** + **MariaDB**, and **Auth.js (next-auth v5)**. Track income and expenses, set budgets, get smart insights, generate reports, and import transactions from CSV.
 
-First, run the development server:
+## Features
+
+### Core tracking
+- Add income/expense transactions with categories, payment methods, and notes
+- Category-wise and overall **monthly budgets** with rollover support
+- **Dashboard** with budget, forecast, spending, category breakdown, and recent transactions
+
+### Smart safeguards
+- **Notifications** for budget warnings, category overspend, large expenses, and forecast warnings
+- Configurable **warning thresholds** (50/70/80/90% of budget)
+- **Cool-down / impulse checks** that make you confirm large or risky expenses
+- **Spending Lock** — a hard cap that blocks new expenses once your remaining budget is exceeded
+
+### Insights & reports
+- **Insights** page: category trends, spending patterns, and budget health
+- **Reports** page: filter by date range, export as **CSV** or **JSON**
+- **CSV import** with duplicate detection
+
+### General
+- Profile, currency, theme (light/dark/system)
+- Dashboard card visibility toggle
+- `prisma/seed.ts` with a ready-to-use demo account
+
+## Tech stack
+
+- **Next.js 16** (App Router, Server Actions)
+- **React 19**, **TypeScript**
+- **Prisma 7** with `@prisma/adapter-mariadb` (MySQL / MariaDB)
+- **Auth.js (next-auth v5)** — email/password (bcrypt) with credentials, OAuth-ready
+- **recharts** for charts, **papaparse** for CSV parsing, **zustand**, **sonner**
+
+## Getting started
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment
+
+Create a `.env` file at the project root:
+
+```env
+DATABASE_URL="mysql://USER:PASSWORD@127.0.0.1:3307/spendguard"
+
+# Required by next-auth — generate with: npx auth secret
+AUTH_SECRET="your-random-secret"
+```
+
+Set `DATABASE_URL` to point at your MySQL/MariaDB instance, then push the schema:
+
+```bash
+npx prisma migrate deploy
+```
+
+### 3. (Optional) Seed demo data
+
+Creates a demo user with default categories, a ₹10,000 monthly budget, sample transactions, and notifications:
+
+```bash
+npx prisma db seed
+```
+
+|                   | Value                    |
+| ----------------- | ------------------------ |
+| Email             | `demo@spendguard.app`    |
+| Password          | `demo1234`               |
+
+### 4. Run the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Sign up or log in with the demo account above.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command            | Description                      |
+| ------------------ | -------------------------------- |
+| `npm run dev`      | Start the dev server             |
+| `npm run build`    | Production build                 |
+| `npm start`        | Run the production build         |
+| `npm run lint`     | ESLint                           |
+| `npm run typecheck`| TypeScript (`tsc --noEmit`)      |
+| `npm test`         | Run the Vitest test suite        |
+| `npx prisma db seed`| Seed the database with demo data |
 
-## Learn More
+> Note: this project uses a **Prisma driver adapter** (`@prisma/adapter-mariadb`). New scripts that touch the database must construct `PrismaClient` with the adapter (see `src/lib/db.ts` and `prisma/seed.ts`).
 
-To learn more about Next.js, take a look at the following resources:
+## Testing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Tests run with **Vitest**. Pure logic (calculations, currency, date, validation schemas) is covered by unit tests, while service logic (reports, notifications) and API route serialization are tested with mocked `db`/`auth` modules.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm test
+```
 
-## Deploy on Vercel
+The suite lives in `tests/`. DB-backed services are tested by mocking `@/lib/db`, so the unit tests don't require a running database.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  actions/        # Server actions (transactions, auth, settings, budgets, lock, import)
+  app/            # Next.js App Router pages (dashboard, insights, reports, settings)
+  components/     # UI components (dialogs, cards, charts, settings, spend-lock)
+  lib/            # db client, constants, utilities, input validation
+  services/       # Business logic (insights, reports, notifications)
+  store/          # zustand UI store
+  types/          # Shared TypeScript types
+prisma/
+  schema.prisma   # Database schema
+  seed.ts         # Demo data seeder
+```
