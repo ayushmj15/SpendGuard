@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { AddExpenseDialog } from "@/components/AddExpenseDialog";
+import { SpendLockDialog } from "@/components/spend-lock/spend-lock-dialog";
 import { Toaster } from "sonner";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       <BottomNav />
       <AddExpenseDialog />
+      <SpendLockDialog />
       <Toaster richColors position="top-center" />
     </div>
   );

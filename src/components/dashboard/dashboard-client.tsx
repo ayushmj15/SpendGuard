@@ -13,6 +13,7 @@ import { MonthlyGraph } from "./monthly-graph";
 import { CategoryDonut } from "./category-donut";
 import { Heatmap } from "./heatmap";
 import { RecentTransactions } from "./recent-transactions";
+import { SpendLockCard } from "@/components/spend-lock/spend-lock-card";
 
 type RecentTxn = {
   id: string;
@@ -97,6 +98,9 @@ export function DashboardClient({
 
       {/* Spending velocity */}
       <SpendingVelocity summary={summary} />
+
+      {/* Spending lock */}
+      <SpendLockCard />
 
       {/* Daily spending chart */}
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">

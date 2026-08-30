@@ -130,6 +130,21 @@ export async function createTransactionAction(
       }
     }
 
+    // Spending Lock: when enabled, block expenses that exceed the remaining budget
+    if (parsed.data.type === "EXPENSE" && settings?.spendingLockEnabled) {
+      const period = await getActivePeriod(userId, parsed.data.date);
+      if (period) {
+        const { spent } = await getPeriodSpending(userId, period.startDate, period.endDate);
+        const remaining = period.amount - spent;
+        if (parsed.data.amount > remaining) {
+          return {
+            ok: false,
+            error: "Spending is locked — this would exceed your remaining budget",
+          };
+        }
+      }
+    }
+
     const created = await db.transaction.create({
       data: {
         userId,

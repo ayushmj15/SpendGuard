@@ -194,6 +194,8 @@ model UserSettings {
   maxTransactionAmount Float @default(100000) // configurable max reasonable transaction
   warningThresholds Json // { budget50, budget70, budget80, budget90, category80, category90, dailySafeOverspend }
   dashboardCards  Json // which dashboard cards are visible
+  spendingLockEnabled Boolean @default(false) // hard-cap lock that blocks expenses above remaining budget
+  spendingLockAmount   Float? // optional cap for the lock (0 = use active budget remaining)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
