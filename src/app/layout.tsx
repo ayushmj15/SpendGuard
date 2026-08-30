@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: `SpendGuard — ${BRAND.tagline}`,
-    template: "%s · SpendGuard",
+    default: `SpendGuard - ${BRAND.tagline}`,
+    template: "%s | SpendGuard",
   },
   description:
     "SpendGuard helps you take control of your spending with monthly budgets, spending alerts, category tracking, and easy expense logging.",

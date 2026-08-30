@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { InstallApp } from "@/components/layout/install-app";
 import { AddExpenseDialog } from "@/components/AddExpenseDialog";
 import { SpendLockDialog } from "@/components/spend-lock/spend-lock-dialog";
 import { Toaster } from "sonner";
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
       </div>
       <BottomNav />
+      <InstallApp />
       <AddExpenseDialog />
       <SpendLockDialog />
       <Toaster richColors position="top-center" />

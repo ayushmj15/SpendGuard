@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/nav";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
+import { SidebarInstallApp } from "@/components/layout/install-app";
 import { LogOut } from "lucide-react";
 
 export function Sidebar() {
@@ -48,6 +49,7 @@ export function Sidebar() {
             You only notice what you measure. Keep going.
           </p>
         </div>
+        <SidebarInstallApp />
         <form
           action="/api/auth/signout"
           method="post"

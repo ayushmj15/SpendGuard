@@ -1,10 +1,14 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { loginSchema } from "@/lib/validations/auth";
+import { ensureUserInitialized } from "@/lib/onboarding";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(db),
   session: {
     strategy: "jwt",
   },
@@ -12,6 +16,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   providers: [
+    Google,
     Credentials({
       name: "credentials",
       credentials: {
@@ -42,6 +47,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user }) {
+      // For OAuth (Google) users, provision default categories/settings/budget
+      // on first sign-in (idempotent). Credentials users are already set up.
+      if (user?.id) {
+        try {
+          await ensureUserInitialized(user.id);
+        } catch (err) {
+          console.error("Failed to initialize user:", err);
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
