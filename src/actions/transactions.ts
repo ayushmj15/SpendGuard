@@ -248,5 +248,3 @@ export async function deleteTransactionAction(id: string): Promise<TransactionAc
     return { ok: false, error: "Failed to delete transaction" };
   }
 }
-
-export { requireUser };
