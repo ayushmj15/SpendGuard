@@ -14,8 +14,25 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db;
+function getDb(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
 }
+
+/**
+ * Lazily constructs the Prisma client on first use so that merely importing
+ * this module (e.g. during `next build` page-data collection) never throws when
+ * DATABASE_URL is absent. The missing-URL error only surfaces at runtime when a
+ * query is actually executed.
+ */
+export const db: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    if (prop === "then") return undefined;
+    if (typeof prop === "symbol") {
+      return Reflect.get(getDb(), prop, receiver);
+    }
+    return Reflect.get(getDb(), prop, receiver);
+  },
+});
