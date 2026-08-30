@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getBudgetSummary, getCategoryTotals, getActivePeriod } from "@/services/spending";
+import { getReport, normalizeDateInput } from "@/services/report";
 import type { BudgetSummary, CategoryTotals } from "@/types";
 
 async function getUserId(): Promise<string> {
@@ -102,6 +103,23 @@ export async function getSettingsAction() {
     db.budget.findFirst({ where: { userId } }),
   ]);
   return { settings, user, budget };
+}
+
+export async function getReportAction(from?: string, to?: string) {
+  const userId = await getUserId();
+  return getReport(userId, from, to);
+}
+
+export async function getReportDefaultsAction() {
+  const userId = await getUserId();
+  await auth();
+  const { fromDate, toDate } = normalizeDateInput();
+  const categories = await db.category.count({ where: { userId } });
+  return {
+    from: fromDate.toISOString().slice(0, 10),
+    to: toDate.toISOString().slice(0, 10),
+    hasCategories: categories > 0,
+  };
 }
 
 export async function getRecentTransactionsAction(limit = 8) {
