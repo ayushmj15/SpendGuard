@@ -3,7 +3,33 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { TransactionImportService } from "@/services/bank";
+import { transactionSchema } from "@/lib/validations/transaction";
+import { categoryIconKey } from "@/lib/constants";
+import { getActivePeriod } from "@/services/spending";
+
+export interface ImportRowInput {
+  date?: string;
+  type?: string;
+  amount?: number | string;
+  category?: string;
+  paymentMethod?: string;
+  description?: string;
+  note?: string;
+}
+
+export interface ImportResultRow {
+  index: number;
+  ok: boolean;
+  error?: string;
+}
+
+export interface ImportActionResult {
+  ok: boolean;
+  error?: string;
+  imported: number;
+  failed: number;
+  results: ImportResultRow[];
+}
 
 async function getUserId(): Promise<string> {
   const session = await auth();
@@ -11,135 +37,124 @@ async function getUserId(): Promise<string> {
   return session.user.id;
 }
 
-export interface ImportRow {
-  date: string; // yyyy-mm-dd
-  description: string;
-  amount: number;
-  type: "EXPENSE" | "INCOME";
-  categoryName?: string; // hint for category matching
-  duplicate?: boolean;
+function normalizeType(v?: string): "EXPENSE" | "INCOME" | undefined {
+  if (!v) return undefined;
+  const upper = v.trim().toUpperCase();
+  if (upper.startsWith("EXP")) return "EXPENSE";
+  if (upper.startsWith("INC")) return "INCOME";
+  return undefined;
 }
 
-export interface ImportResult {
-  ok: boolean;
-  error?: string;
-  imported?: number;
-  skipped?: number;
+function normalizePayment(v?: string): string | undefined {
+  if (!v) return undefined;
+  const map: Record<string, string> = {
+    UPI: "UPI",
+    DEBIT: "DEBIT_CARD",
+    DEBIT_CARD: "DEBIT_CARD",
+    CREDIT: "CREDIT_CARD",
+    CREDIT_CARD: "CREDIT_CARD",
+    CASH: "CASH",
+    CARD: "OTHER",
+    TRANSFER: "BANK_TRANSFER",
+    BANK: "BANK_TRANSFER",
+    BANK_TRANSFER: "BANK_TRANSFER",
+    OTHER: "OTHER",
+  };
+  const key = v.trim().toUpperCase().replace(/[^A-Z_]/g, "");
+  return map[key] ?? (key ? "OTHER" : undefined);
 }
 
-/**
- * Imports a list of confirmed CSV rows into transactions.
- * - Matches categories by name (defaulting to "Other").
- * - Detects potential duplicates via signature and skips them.
- * - Multiple rows with identical content are only imported once.
- */
+async function resolveCategory(userId: string, name?: string): Promise<string | null> {
+  if (!name || !name.trim()) return null;
+  const trimmed = name.trim();
+  const categories = await db.category.findMany({ where: { userId } });
+  const lower = trimmed.toLowerCase();
+  const existing = categories.find((c) => c.name.toLowerCase() === lower);
+  if (existing) return existing.id;
+
+  const created = await db.category.create({
+    data: {
+      userId,
+      name: trimmed,
+      icon: categoryIconKey(trimmed),
+      isDefault: false,
+    },
+  });
+  return created.id;
+}
+
 export async function importTransactionsAction(
-  rows: ImportRow[],
-): Promise<ImportResult> {
+  rows: ImportRowInput[],
+): Promise<ImportActionResult> {
   try {
     const userId = await getUserId();
+    const imported: ImportResultRow[] = [];
+    let importedCount = 0;
+    let failedCount = 0;
 
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return { ok: false, error: "No rows to import" };
-    }
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      try {
+        const categoryId = await resolveCategory(userId, r.category);
+        if (!categoryId) {
+          imported.push({ index: i, ok: false, error: "Missing category" });
+          failedCount++;
+          continue;
+        }
 
-    const categories = await db.category.findMany({ where: { userId } });
-    const byName = new Map(categories.map((c) => [c.name.toLowerCase(), c]));
-    const other = byName.get("other");
+        const parsed = transactionSchema.safeParse({
+          type: normalizeType(r.type) ?? "EXPENSE",
+          amount: typeof r.amount === "number" ? r.amount : parseFloat(String(r.amount ?? "")),
+          categoryId,
+          date: r.date ? new Date(r.date) : new Date(),
+          paymentMethod: normalizePayment(r.paymentMethod) ?? "OTHER",
+          description: r.description ?? "",
+          note: r.note ?? "",
+        });
 
-    if (!other) return { ok: false, error: "Missing 'Other' category" };
+        if (!parsed.success) {
+          imported.push({ index: i, ok: false, error: parsed.error.issues[0]?.message ?? "Invalid row" });
+          failedCount++;
+          continue;
+        }
 
-    // Existing signatures to skip duplicates
-    const existingTxns = await db.transaction.findMany({
-      where: { userId },
-      select: { date: true, amount: true, description: true },
-    });
-    const existingSigs = new Set(
-      existingTxns.map((t) =>
-        TransactionImportService.duplicateSignature({
-          date: t.date,
-          amount: t.amount,
-          description: t.description,
-        }),
-      ),
-    );
+        await db.transaction.create({
+          data: {
+            userId,
+            categoryId,
+            type: parsed.data.type,
+            amount: parsed.data.amount,
+            description: parsed.data.description || null,
+            note: parsed.data.note || null,
+            paymentMethod: parsed.data.paymentMethod as never,
+            date: parsed.data.date,
+          },
+        });
 
-    // Also check previously imported rows (raw signature)
-    const importedRows = await db.importedTransaction.findMany({
-      where: { userId },
-      select: { rawData: true },
-    });
-    for (const ir of importedRows) {
-      const raw = ir.rawData as Record<string, unknown> | null;
-      if (raw?.sig) existingSigs.add(String(raw.sig));
-    }
-
-    let imported = 0;
-    let skipped = 0;
-    const seenInBatch = new Set<string>();
-
-    for (const row of rows) {
-      const d = new Date(row.date);
-      if (Number.isNaN(d.getTime())) {
-        skipped += 1;
-        continue;
-      }
-      if (!Number.isFinite(row.amount) || row.amount <= 0) {
-        skipped += 1;
-        continue;
-      }
-
-      const sig = TransactionImportService.duplicateSignature({
-        date: d,
-        amount: row.amount,
-        description: row.description,
-      });
-
-      if (existingSigs.has(sig) || seenInBatch.has(sig)) {
-        skipped += 1;
-        continue;
-      }
-
-      seenInBatch.add(sig);
-
-      const categoryName =
-        row.categoryName && byName.has(row.categoryName.toLowerCase())
-          ? byName.get(row.categoryName.toLowerCase())!.id
-          : other.id;
-
-      await db.transaction.create({
-        data: {
-          userId,
-          categoryId: categoryName,
-          type: row.type,
-          amount: row.amount,
-          description: row.description || null,
-          paymentMethod: "BANK_TRANSFER",
-          date: d,
-        },
-      });
-
-      existingSigs.add(sig);
-      imported += 1;
-    }
-
-    if (imported > 0) {
-      await db.importedTransaction.create({
-        data: {
-          userId,
-          source: "CSV",
-          rawData: { count: imported, at: new Date().toISOString() },
-        },
-      });
-
-      for (const path of ["/dashboard", "/transactions", "/reports"]) {
-        revalidatePath(path);
+        imported.push({ index: i, ok: true });
+        importedCount++;
+      } catch (err) {
+        imported.push({
+          index: i,
+          ok: false,
+          error: err instanceof Error ? err.message : "Failed to import row",
+        });
+        failedCount++;
       }
     }
 
-    return { ok: true, imported, skipped };
+    const activePeriod = await getActivePeriod(userId);
+    if (activePeriod) {
+      await db.transaction.count({ where: { userId, date: { gte: activePeriod.startDate, lte: activePeriod.endDate } } });
+    }
+
+    for (const path of ["/dashboard", "/transactions", "/budget", "/insights", "/reports"]) {
+      revalidatePath(path);
+    }
+
+    return { ok: true, imported: importedCount, failed: failedCount, results: imported };
   } catch (err) {
     console.error("importTransactionsAction error:", err);
-    return { ok: false, error: "CSV import failed" };
+    return { ok: false, error: "Failed to import transactions", imported: 0, failed: rows.length, results: [] };
   }
 }

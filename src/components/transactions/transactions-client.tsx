@@ -15,14 +15,15 @@ import {
   X,
   Loader2,
   ArrowRight,
+  Upload,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
 import { getTransactionsAction, getCategoriesAction } from "@/actions/query";
 import {
-  createTransactionAction,
   updateTransactionAction,
   deleteTransactionAction,
 } from "@/actions/transactions";
+import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog";
 import { transactionFormSchema, type TransactionFormInput } from "@/lib/validations/transaction";
 import { resolveCategoryIcon, PAYMENT_METHODS, TRANSACTION_TYPES } from "@/lib/constants";
 import { formatINR } from "@/utils/currency";
@@ -68,6 +69,7 @@ export function TransactionsClient() {
   const [loading, setLoading] = React.useState(true);
   const [hasMore, setHasMore] = React.useState(false);
   const [editing, setEditing] = React.useState<Txn | null>(null);
+  const [importOpen, setImportOpen] = React.useState(false);
 
   const [search, setSearch] = React.useState("");
   const [type, setType] = React.useState<string>("");
@@ -138,6 +140,9 @@ export function TransactionsClient() {
             {total} transaction{total === 1 ? "" : "s"}
           </p>
         </div>
+        <Button variant="outline" onClick={() => setImportOpen(true)}>
+          <Upload className="h-4 w-4" /> Import CSV
+        </Button>
         <Button onClick={() => setAddExpenseOpen(true)}>
           <Plus className="h-4 w-4" /> Add Transaction
         </Button>
@@ -245,6 +250,8 @@ export function TransactionsClient() {
         onClose={() => setEditing(null)}
         onSaved={refresh}
       />
+
+      <ImportCsvDialog open={importOpen} onOpenChange={setImportOpen} onImported={refresh} />
     </div>
   );
 }
