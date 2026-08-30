@@ -4,7 +4,7 @@
 //
 // Run with: `npx prisma db seed` (wired via prisma.config.ts -> "tsx prisma/seed.ts")
 
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -12,7 +12,7 @@ const url = process.env.DATABASE_URL;
 if (!url) {
   throw new Error("DATABASE_URL is not set. Check your .env file.");
 }
-const adapter = new PrismaMariaDb(url);
+const adapter = new PrismaPg(url);
 const db = new PrismaClient({ adapter });
 
 const DEMO_EMAIL = "demo@spendguard.app";

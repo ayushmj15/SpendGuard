@@ -1,6 +1,6 @@
 # SpendGuard 💱
 
-A personal finance tracker built with **Next.js (App Router)**, **React 19**, **Prisma 7** + **MariaDB**, and **Auth.js (next-auth v5)**. Track income and expenses, set budgets, get smart insights, generate reports, and import transactions from CSV.
+A personal finance tracker built with **Next.js (App Router)**, **React 19**, **Prisma 7** + **PostgreSQL (Supabase)**, and **Auth.js (next-auth v5)**. Track income and expenses, set budgets, get smart insights, generate reports, and import transactions from CSV.
 
 ## Features
 
@@ -29,7 +29,7 @@ A personal finance tracker built with **Next.js (App Router)**, **React 19**, **
 
 - **Next.js 16** (App Router, Server Actions)
 - **React 19**, **TypeScript**
-- **Prisma 7** with `@prisma/adapter-mariadb` (MySQL / MariaDB)
+- **Prisma 7** with `@prisma/adapter-pg` (PostgreSQL / Supabase)
 - **Auth.js (next-auth v5)** — email/password (bcrypt) with credentials, OAuth-ready
 - **recharts** for charts, **papaparse** for CSV parsing, **zustand**, **sonner**
 
@@ -46,13 +46,13 @@ npm install
 Create a `.env` file at the project root:
 
 ```env
-DATABASE_URL="mysql://USER:PASSWORD@127.0.0.1:3307/spendguard"
+DATABASE_URL="postgresql://USER:PASSWORD@host:5432/postgres"
 
 # Required by next-auth — generate with: npx auth secret
 AUTH_SECRET="your-random-secret"
 ```
 
-Set `DATABASE_URL` to point at your MySQL/MariaDB instance, then push the schema:
+Set `DATABASE_URL` to a PostgreSQL database (e.g. a Supabase project's **Direct connection** string), then apply the schema:
 
 ```bash
 npx prisma migrate deploy
@@ -91,7 +91,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign up or log in with the 
 | `npm test`         | Run the Vitest test suite        |
 | `npx prisma db seed`| Seed the database with demo data |
 
-> Note: this project uses a **Prisma driver adapter** (`@prisma/adapter-mariadb`). New scripts that touch the database must construct `PrismaClient` with the adapter (see `src/lib/db.ts` and `prisma/seed.ts`).
+> Note: this project uses a **Prisma driver adapter** (`@prisma/adapter-pg`). New scripts that touch the database must construct `PrismaClient` with the adapter (see `src/lib/db.ts` and `prisma/seed.ts`).
 
 ## Testing
 

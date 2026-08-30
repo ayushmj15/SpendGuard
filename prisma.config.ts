@@ -10,7 +10,7 @@ import { defineConfig } from "prisma/config";
 // var at build time never affects runtime — it would only fail later if unset.
 const databaseUrl =
   process.env.DATABASE_URL ??
-  "mysql://placeholder:placeholder@localhost:3306/placeholder";
+  "postgresql://placeholder:placeholder@localhost:5432/placeholder";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

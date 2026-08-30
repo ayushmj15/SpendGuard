@@ -1,12 +1,12 @@
 // SpendGuard - Prisma schema
-// Provider: mysql (local dev) - PostgreSQL works with minor changes (see README)
+// Provider: postgresql (Supabase hosted DB)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 // ---------------------------------------------------------------------------
