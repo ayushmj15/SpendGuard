@@ -27,9 +27,11 @@ function useInstallPrompt(): InstallState {
     );
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
-        // Ignore registration failures (e.g. unsupported or insecure context).
-      });
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .catch(() => {
+          // Ignore registration failures (e.g. unsupported or insecure context).
+        });
     }
 
     const onBeforeInstallPrompt = (e: Event) => {
