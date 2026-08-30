@@ -1,0 +1,232 @@
+// SpendGuard - Prisma schema
+// Provider: mysql (local dev) - PostgreSQL works with minor changes (see README)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ---------------------------------------------------------------------------
+// AUTHENTICATION (Auth.js / NextAuth)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String     @unique
+  emailVerified DateTime?
+  image         String?
+  hashedPassword String?
+  role          String     @default("user")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  categories        Category[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  budgetPeriods     BudgetPeriod[]
+  notifications     Notification[]
+  userSettings      UserSettings?
+  bankConnections   BankConnection[]
+  importedTransactions ImportedTransaction[]
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// BUDGETS & CATEGORIES
+// ---------------------------------------------------------------------------
+
+// A category belongs to a user. Default categories are seeded per user.
+model Category {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  icon       String   @default("tag")
+  color      String   @default("#0f766e")
+  budget     Float? // category-wise budget (optional)
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// A configured budget for a user (current period + history).
+model Budget {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String   @default("Monthly Budget")
+  amount         Float // total monthly budget amount
+  periodType     String   @default("MONTHLY") // MONTHLY | WEEKLY | CUSTOM
+  rolloverEnabled Boolean @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetPeriods  BudgetPeriod[]
+
+  @@index([userId])
+}
+
+// Each distinct budgeting period (e.g. August 2026). Previous months stay in history.
+model BudgetPeriod {
+  id         String   @id @default(cuid())
+  budgetId   String
+  userId     String
+  startDate  DateTime
+  endDate    DateTime
+  amount     Float // budget amount for this period (may include rollover)
+  rollover   Float   @default(0) // unused budget rolled over from previous period
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, startDate])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// TRANSACTIONS
+// ---------------------------------------------------------------------------
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  categoryId    String
+  type          String   @default("EXPENSE") // EXPENSE | INCOME
+  amount        Float
+  description   String?
+  note          String?  @db.Text
+  paymentMethod String   @default("UPI") // UPI | DEBIT_CARD | CREDIT_CARD | CASH | BANK_TRANSFER | OTHER
+  date          DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+  @@index([userId, type])
+}
+
+// ---------------------------------------------------------------------------
+// NOTIFICATIONS
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id      String   @id @default(cuid())
+  userId  String
+  type    String // BUDGET_WARNING | BUDGET_EXCEEDED | CATEGORY_WARNING | LARGE_EXPENSE | FORECAST_WARNING | MONTHLY_SUMMARY | SYSTEM
+  title   String
+  message String   @db.Text
+  read    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// USER SETTINGS
+// ---------------------------------------------------------------------------
+
+model UserSettings {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  currency       String   @default("INR")
+  theme          String   @default("system") // light | dark | system
+  coolDownThreshold Float @default(0.1) // expense > X% of remaining budget triggers "are you sure?"
+  impulseThreshold   Float @default(0) // expense above this amount triggers impulse warning (0 = disabled)
+  maxTransactionAmount Float @default(100000) // configurable max reasonable transaction
+  warningThresholds Json // { budget50, budget70, budget80, budget90, category80, category90, dailySafeOverspend }
+  dashboardCards  Json // which dashboard cards are visible
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// FUTURE BANK INTEGRATION (architecture only - no credential storage)
+// ---------------------------------------------------------------------------
+
+model BankConnection {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String // e.g. "HDFC", "SBI", "AA" (Account Aggregator)
+  status     String   @default("pending") // pending | connected | disconnected | error
+  lastSyncedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Tracks imported/CSV rows to prevent duplicate imports (raw source row, no sensitive bank secrets).
+model ImportedTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  source        String   @default("CSV")
+  importedAt    DateTime @default(now())
+  rawData       Json // the original row, along with duplicate-detection signature
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, importedAt])
+}
