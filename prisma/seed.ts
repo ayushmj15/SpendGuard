@@ -12,7 +12,12 @@ const url = process.env.DATABASE_URL;
 if (!url) {
   throw new Error("DATABASE_URL is not set. Check your .env file.");
 }
-const adapter = new PrismaPg(url);
+const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, "").replace(/[?&]$/, "");
+const isLocal = /localhost|127\.0\.0\.1|::1/.test(new URL(url).hostname);
+const adapter = new PrismaPg({
+  connectionString: cleanUrl,
+  ssl: isLocal ? undefined : { rejectUnauthorized: false },
+});
 const db = new PrismaClient({ adapter });
 
 const DEMO_EMAIL = "demo@spendguard.app";

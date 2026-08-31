@@ -5,13 +5,23 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-function createPrismaClient() {
+function pgPoolConfig() {
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error("DATABASE_URL is not set. Check your .env file.");
   }
-  const adapter = new PrismaPg(url);
-  return new PrismaClient({ adapter });
+  // node-postgres treats "sslmode=require" as verify-full, which rejects
+  // Supabase's certificate chain. Strip the param and handle TLS ourselves.
+  const cleanUrl = url.replace(/[?&]sslmode=[^&]*/g, "").replace(/[?&]$/, "");
+  const isLocal = /localhost|127\.0\.0\.1|::1/.test(new URL(url).hostname);
+  return {
+    connectionString: cleanUrl,
+    ssl: isLocal ? undefined : { rejectUnauthorized: false },
+  };
+}
+
+function createPrismaClient() {
+  return new PrismaClient({ adapter: new PrismaPg(pgPoolConfig()) });
 }
 
 function getDb(): PrismaClient {
