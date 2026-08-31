@@ -12,7 +12,6 @@ const SHELL_ASSETS = [
   "/icon-maskable-192.png",
   "/icon-maskable-512.png",
   "/apple-icon.png",
-  "/logo.svg",
 ];
 
 /* Cache URLs: asset -> relative resource path (if any) */
