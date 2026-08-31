@@ -54,22 +54,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           await ensureUserInitialized(user.id);
         } catch (err) {
-          console.error("Failed to initialize user:", err);
+          // Don't block sign-in, but log loudly so a failed first-time
+          // provisioning is visible and can be retried by the session callback.
+          console.error("[auth] Failed to initialize user on sign-in:", err);
         }
       }
       return true;
+    },
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        (session.user as { id: string }).id = token.id as string;
+        // Retry provisioning idempotently: if it failed during the original
+        // sign-in (e.g. transient/network error), ensure defaults on next read.
+        try {
+          await ensureUserInitialized(token.id as string);
+        } catch (err) {
+          console.error("[auth] Failed to ensure user initialized on session:", err);
+        }
+      }
+      return session;
     },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
       }
       return token;
-    },
-    async session({ session, token }) {
-      if (session.user && token.id) {
-        (session.user as { id: string }).id = token.id as string;
-      }
-      return session;
     },
   },
 });
