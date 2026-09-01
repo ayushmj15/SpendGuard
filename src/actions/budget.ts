@@ -40,25 +40,32 @@ export async function updateBudgetAction(
       orderBy: { startDate: "desc" },
     });
 
-    // Update or create the active monthly budget
-    const budget = await db.budget.upsert({
-      where: { id: (activePeriod?.budgetId ?? "") || undefined },
-      create: {
-        userId,
-        name: parsed.data.name ?? "Monthly Budget",
-        amount: parsed.data.amount,
-        periodType: parsed.data.periodType,
-        rolloverEnabled: parsed.data.rolloverEnabled,
-      },
-      update: {
-        name: parsed.data.name,
-        amount: parsed.data.amount,
-        periodType: parsed.data.periodType,
-        rolloverEnabled: parsed.data.rolloverEnabled,
-      },
-    });
+    // Find the user's budget, or create one if none exists yet (a fresh user has
+    // no budget, so a global upsert with an undefined id cannot be used).
+    let budget = await db.budget.findFirst({ where: { userId } });
+    if (!budget) {
+      budget = await db.budget.create({
+        data: {
+          userId,
+          name: parsed.data.name ?? "Monthly Budget",
+          amount: parsed.data.amount,
+          periodType: parsed.data.periodType,
+          rolloverEnabled: parsed.data.rolloverEnabled,
+        },
+      });
+    } else {
+      await db.budget.update({
+        where: { id: budget.id },
+        data: {
+          name: parsed.data.name,
+          amount: parsed.data.amount,
+          periodType: parsed.data.periodType,
+          rolloverEnabled: parsed.data.rolloverEnabled,
+        },
+      });
+    }
 
-    // Update the active budget period amount
+    // Update the active budget period amount, or create one for the current month
     if (activePeriod) {
       await db.budgetPeriod.update({
         where: { id: activePeriod.id },
