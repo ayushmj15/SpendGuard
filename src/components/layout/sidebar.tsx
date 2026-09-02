@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/nav";
 import { Logo } from "@/components/logo";
@@ -50,16 +51,15 @@ export function Sidebar() {
           </p>
         </div>
         <SidebarInstallApp />
-        <form
-          action="/api/auth/signout"
-          method="post"
-          className="mt-3"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-3 w-full justify-start text-muted-foreground"
+          onClick={() => signOut({ callbackUrl: "/login" })}
         >
-          <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground">
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </Button>
-        </form>
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
       </div>
     </aside>
   );

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Menu, Plus, Moon, Sun } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { NAV_ITEMS } from "@/lib/nav";
 import { useTheme } from "@/components/theme-provider";
 import { useUIStore } from "@/store/ui-store";
@@ -94,15 +95,17 @@ export function Header() {
             })}
           </nav>
           <div className="border-t border-border p-4">
-            <form action="/api/auth/signout" method="post">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground"
-              >
-                Sign out
-              </Button>
-            </form>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-muted-foreground"
+              onClick={() => {
+                setMobileOpen(false);
+                signOut({ callbackUrl: "/login" });
+              }}
+            >
+              Sign out
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
