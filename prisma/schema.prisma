@@ -32,6 +32,7 @@ model User {
   budgetPeriods     BudgetPeriod[]
   notifications     Notification[]
   userSettings      UserSettings?
+  pushSubscriptions PushSubscription[]
   bankConnections   BankConnection[]
   importedTransactions ImportedTransaction[]
 
@@ -203,8 +204,25 @@ model UserSettings {
 }
 
 // ---------------------------------------------------------------------------
-// FUTURE BANK INTEGRATION (architecture only - no credential storage)
+// PUSH NOTIFICATIONS
 // ---------------------------------------------------------------------------
+
+// Stores the user's Web Push subscription endpoints so the server can send
+// reminder notifications (e.g. "Log your expense"). Added on opt-in; removed
+// on unsub or when the browser rejects a push.
+model PushSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  endpoint     String   @unique @db.Text
+  p256dh       String   @db.Text
+  auth         String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
 
 model BankConnection {
   id         String   @id @default(cuid())

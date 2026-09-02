@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PushNotificationsToggle } from "@/components/settings/push-notifications";
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD"];
 
@@ -249,6 +250,20 @@ export function SettingsClient({
                 Save controls
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Push notifications */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <BellRing className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Reminders</CardTitle>
+            </div>
+            <CardDescription>Get nudged to track a payment you just made.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PushNotificationsToggle />
           </CardContent>
         </Card>
       </div>
