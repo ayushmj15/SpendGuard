@@ -33,6 +33,7 @@ model User {
   notifications     Notification[]
   userSettings      UserSettings?
   pushSubscriptions PushSubscription[]
+  passwordResetTokens PasswordResetToken[]
   bankConnections   BankConnection[]
   importedTransactions ImportedTransaction[]
 
@@ -76,6 +77,20 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Single-use password reset tokens (forgot-password flow). Hashed in DB.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique @db.Text
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
